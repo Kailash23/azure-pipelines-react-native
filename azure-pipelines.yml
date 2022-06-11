@@ -1,0 +1,49 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  - master
+  - azure-pipelines
+
+variables:
+  - group: helig
+
+pool:
+  vmImage: "macos-latest"
+
+jobs:
+  - job: Build_Deploy_Android
+    steps:
+      - checkout: self
+        persistCredentials: true
+        clean: true
+      - task: NodeTool@0
+        displayName: "Install Node"
+        inputs:
+          versionSpec: "16.13.2"
+      - script: yarn install
+        displayName: Install Yarn Dependencies
+      - task: Gradle@2
+        displayName: "Build APK"
+        inputs:
+          gradleWrapperFile: "android/gradlew"
+          workingDirectory: "android/"
+          options: "-PversionName=1 -PversionCode=$(Build.BuildId)"
+          apkFiles: "**/*.apk"
+          tasks: "assembleRelease"
+          publishJUnitResults: false
+          javaHomeOption: "JDKVersion"
+          jdkVersionOption: "1.8"
+          gradleOptions: "-Xmx3072m"
+          sonarQubeRunAnalysis: false
+      - task: AndroidSigning@3
+        displayName: "Sign APK"
+        inputs:
+          apkFiles: "**/*.apk"
+          apksignerKeystoreFile: "debug.keystore"
+          apksignerKeystorePassword: "$(AndroidKeyStorePassword)"
+          apksignerKeystoreAlias: "$(AndroidKeyAlias)"
+          apksignerKeyPassword: "$(AndroidKeyAliasPassword)"
+          zipalign: true
